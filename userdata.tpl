@@ -38,13 +38,22 @@ ${userdata_extra}
 
 echo "### REBOOT IF KERNEL/CORE PACKAGES UPDATED"
 # Wiz scans the running kernel; without reboot it stays on the AMI's baked kernel
-# even though yum update installed a newer one. Stop ECS agent first so the
+# even though yum update installed a newer one. Stop the ECS agent first so the
 # scheduler does not place tasks on this node before the reboot completes.
-if ! needs-restarting -r >/dev/null 2>&1; then
-  echo "Reboot required to activate updated kernel"
-  systemctl stop ecs || true
-  systemctl stop docker || true
-  shutdown -r +1 "Activating updated kernel"
-else
-  echo "No reboot required"
-fi
+# Docker is left running — the reboot stops it cleanly via systemd shutdown,
+# and on AL2 ECS AMI the ECS agent is After=cloud-final.service so it hasn't
+# started yet at this point (no in-flight tasks to interrupt).
+needs-restarting -r >/dev/null 2>&1 && NEEDS_RESTART=0 || NEEDS_RESTART=$?
+case $NEEDS_RESTART in
+  0)
+    echo "No reboot required"
+    ;;
+  1)
+    echo "Reboot required to activate updated kernel"
+    systemctl stop ecs || true
+    shutdown -r +1 "Activating updated kernel"
+    ;;
+  *)
+    echo "needs-restarting exited $NEEDS_RESTART; skipping reboot to avoid acting on errors"
+    ;;
+esac
