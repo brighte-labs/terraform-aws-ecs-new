@@ -15,7 +15,7 @@ echo "fs.file-max=65536" >> /etc/sysctl.conf
 
 echo "### INSTALL PACKAGES"
 yum update -y
-yum install -y amazon-efs-utils aws-cli
+yum install -y amazon-efs-utils aws-cli yum-utils
 
 
 echo "### SETUP EFS"
@@ -35,3 +35,16 @@ echo "ECS_ENABLE_SPOT_INSTANCE_DRAINING=true" >> /etc/ecs/ecs.config
 
 echo "### EXTRA USERDATA"
 ${userdata_extra}
+
+echo "### REBOOT IF KERNEL/CORE PACKAGES UPDATED"
+# Wiz scans the running kernel; without reboot it stays on the AMI's baked kernel
+# even though yum update installed a newer one. Stop ECS agent first so the
+# scheduler does not place tasks on this node before the reboot completes.
+if ! needs-restarting -r >/dev/null 2>&1; then
+  echo "Reboot required to activate updated kernel"
+  systemctl stop ecs || true
+  systemctl stop docker || true
+  shutdown -r +1 "Activating updated kernel"
+else
+  echo "No reboot required"
+fi
