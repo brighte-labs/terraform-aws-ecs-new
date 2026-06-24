@@ -4,6 +4,16 @@ resource "aws_launch_template" "ecs" {
   image_id      = data.aws_ami.amzn.image_id
   instance_type = length(var.instance_types) == 0 ? "t2.micro" : var.instance_types[0]
 
+  dynamic "metadata_options" {
+    for_each = var.enable_imdsv2 ? [1] : []
+
+    content {
+      http_endpoint               = "enabled"
+      http_tokens                 = "required"
+      http_put_response_hop_limit = 2
+    }
+  }
+
   iam_instance_profile {
     name = aws_iam_instance_profile.ecs[0].name
   }
