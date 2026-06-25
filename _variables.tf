@@ -378,3 +378,9 @@ variable "container_insights" {
   default     = false
   description = "Enables CloudWatch Container Insights for a cluster."
 }
+
+variable "enable_imdsv2" {
+  description = "Enforce IMDSv2 for ECS container instances."
+  type        = bool
+  default     = false
+}
