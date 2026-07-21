@@ -378,3 +378,9 @@ variable "container_insights" {
   default     = false
   description = "Enables CloudWatch Container Insights for a cluster."
 }
+
+variable "enable_imdsv2" {
+  type        = bool
+  default     = false
+  description = "Enforce IMDSv2 for ECS container instances. When true, sets http_tokens = required on the launch template with a http_put_response_hop_limit of 2 (safe for containerised workloads)."
+}
