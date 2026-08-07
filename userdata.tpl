@@ -3,7 +3,11 @@
 set -eux
 
 echo "### HARDENING DOCKER"
-sed -i "s/1024:4096/65535:65535/g" "/etc/sysconfig/docker"
+# /etc/sysconfig/docker exists on AL2 ECS AMI but not on AL2023 ECS AMI
+# (AL2023 configures Docker via systemd unit drop-ins instead).
+if [ -f /etc/sysconfig/docker ]; then
+  sed -i "s/1024:4096/65535:65535/g" "/etc/sysconfig/docker"
+fi
 
 echo "### HARDENING EC2 INSTACE"
 echo "ulimit -u unlimited" >> /etc/rc.local
@@ -15,7 +19,16 @@ echo "fs.file-max=65536" >> /etc/sysctl.conf
 
 echo "### INSTALL PACKAGES"
 yum update -y
-yum install -y amazon-efs-utils aws-cli yum-utils
+yum install -y amazon-efs-utils aws-cli
+# yum-utils is only needed for `needs-restarting -r` below. On AL2023 the
+# yum shim resolves this to dnf-utils and a transient dnf cache race can
+# cause the transaction to abort mid-install (RPM disappears from cache
+# before install completes). Because `set -eux` is on, that aborts the
+# whole userdata and the SETUP AGENT block never writes ECS_CLUSTER, so
+# the node fails to join ECS. Make this install non-fatal — the reboot
+# check below already handles missing needs-restarting via its default
+# case branch.
+yum install -y yum-utils || echo "WARN: yum-utils install failed, needs-restarting reboot check will be skipped"
 
 
 echo "### SETUP EFS"

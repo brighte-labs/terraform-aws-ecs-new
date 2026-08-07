@@ -384,3 +384,13 @@ variable "enable_imdsv2" {
   type        = bool
   default     = false
 }
+
+variable "ecs_ami_family" {
+  type        = string
+  default     = "amazon-linux-2"
+  description = "ECS-optimized AMI family. Valid: 'amazon-linux-2' (default) or 'amazon-linux-2023'."
+  validation {
+    condition     = contains(["amazon-linux-2", "amazon-linux-2023"], var.ecs_ami_family)
+    error_message = "ecs_ami_family must be 'amazon-linux-2' or 'amazon-linux-2023'."
+  }
+}
