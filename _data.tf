@@ -1,11 +1,25 @@
 data "aws_region" "current" {}
+
+locals {
+  ecs_ami_filters = {
+    "amazon-linux-2" = {
+      name       = "amzn2-ami-ecs-hvm*"
+      name_regex = ".+-ebs$"
+    }
+    "amazon-linux-2023" = {
+      name       = "al2023-ami-ecs-hvm*"
+      name_regex = ".*"
+    }
+  }
+}
+
 data "aws_ami" "amzn" {
   most_recent = true
   owners      = ["amazon"]
 
   filter {
     name   = "name"
-    values = ["amzn2-ami-ecs-hvm*"]
+    values = [local.ecs_ami_filters[var.ecs_ami_family].name]
   }
 
   filter {
@@ -13,7 +27,7 @@ data "aws_ami" "amzn" {
     values = [var.architecture]
   }
 
-  name_regex = ".+-ebs$"
+  name_regex = local.ecs_ami_filters[var.ecs_ami_family].name_regex
 }
 
 data "aws_subnet" "private_subnets" {
