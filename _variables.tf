@@ -385,6 +385,16 @@ variable "enable_imdsv2" {
   default     = false
 }
 
+variable "image_id" {
+  type        = string
+  default     = null
+  description = "Optional AMI for the ECS nodes' launch template, overriding the ecs_ami_family lookup. A plain AMI id (ami-...) or \"resolve:ssm:<parameter name>\" (resolved by EC2 at each launch). Null = latest ECS-optimized AMI for ecs_ami_family (default)."
+  validation {
+    condition     = var.image_id == null || can(regex("^(ami-[0-9a-f]{8,17}|resolve:ssm:.+)$", var.image_id))
+    error_message = "image_id must be an AMI id (ami-...) or resolve:ssm:<parameter name>."
+  }
+}
+
 variable "ecs_ami_family" {
   type        = string
   default     = "amazon-linux-2"
