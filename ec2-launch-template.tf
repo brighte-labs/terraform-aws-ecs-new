@@ -5,7 +5,7 @@
 resource "aws_launch_template" "ecs" {
   count         = var.fargate_only ? 0 : 1
   name_prefix   = "ecs-${var.name}-"
-  image_id      = var.image_id != null ? var.image_id : data.aws_ami.amzn.image_id
+  image_id      = var.image_id != null ? var.image_id : data.aws_ami.amzn[0].image_id
   instance_type = length(var.instance_types) == 0 ? "t2.micro" : var.instance_types[0]
 
   dynamic "metadata_options" {
