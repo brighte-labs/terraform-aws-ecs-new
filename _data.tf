@@ -13,7 +13,11 @@ locals {
   }
 }
 
+# Only looked up when no image_id override is given: with an override (a fixed
+# AMI or resolve:ssm:...) a family/architecture lookup that returns nothing
+# must not be able to fail the plan.
 data "aws_ami" "amzn" {
+  count       = var.image_id == null ? 1 : 0
   most_recent = true
   owners      = ["amazon"]
 

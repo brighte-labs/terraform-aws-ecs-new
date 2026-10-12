@@ -96,13 +96,16 @@ module "ecs_apps" {
 | create\_iam\_service\_linked\_role | Create iam\_service\_linked\_role for ECS or not. | `bool` | `false` | no |
 | ebs\_key\_arn | ARN of a KMS Key to use on EBS volumes | `string` | `""` | no |
 | ec2\_key\_enabled | Generate a SSH private key and include in launch template of ECS nodes | `bool` | `false` | no |
+| ecs\_ami\_family | ECS-optimized AMI family. Valid: 'amazon-linux-2' (default) or 'amazon-linux-2023'. | `string` | `"amazon-linux-2"` | no |
 | efs\_key\_arn | ARN of a KMS Key to use on EFS volumes | `string` | `""` | no |
 | efs\_lifecycle\_transition\_to\_ia | Option to enable EFS Lifecycle Transaction to IA | `string` | `""` | no |
 | efs\_lifecycle\_transition\_to\_primary\_storage\_class | Option to enable EFS Lifecycle Transaction to Primary Storage Class | `bool` | `false` | no |
+| enable\_imdsv2 | Enforce IMDSv2 for ECS container instances. | `bool` | `false` | no |
 | enable\_schedule | Enables schedule to shut down and start up instances outside business hours. | `bool` | `false` | no |
 | extra\_certificate\_arns | Extra ACM certificates to add to ALB Listeners | `list(string)` | `[]` | no |
 | extra\_task\_policies\_arn | Extra policies to add to the task definition permissions | `list(string)` | `[]` | no |
 | fargate\_only | Enable when cluster is only for fargate and does not require ASG/EC2/EFS infrastructure | `bool` | `false` | no |
+| image\_id | Optional AMI for the ECS nodes' launch template, overriding the ecs\_ami\_family lookup. A plain AMI id (ami-...) or "resolve:ssm:<parameter name>" (resolved by EC2 at each launch). Null = latest ECS-optimized AMI for ecs\_ami\_family (default). | `string` | `null` | no |
 | instance\_types | Instance type for ECS workers | `list(any)` | `[]` | no |
 | instance\_volume\_size | Volume size for docker volume (in GB). | `number` | `30` | no |
 | instance\_volume\_size\_root | Volume size for root volume (in GB). | `number` | `16` | no |
@@ -119,6 +122,7 @@ module "ecs_apps" {
 | secure\_subnet\_ids | List of secure subnet IDs for EFS. | `list(string)` | n/a | yes |
 | security\_group\_ecs\_nodes\_outbound\_cidrs | ECS Nodes outbound allowed CIDRs for the security group. | `list(string)` | <pre>[<br>  "0.0.0.0/0"<br>]</pre> | no |
 | security\_group\_ids | Extra security groups for instances. | `list(string)` | `[]` | no |
+| spot\_allocation\_strategy | How to allocate capacity across the Spot pools. Valid values: lowest-price, diversified, capacity-optimized, price-capacity-optimized. | `string` | `"price-capacity-optimized"` | no |
 | tags | Map of tags that will be added to created resources. By default resources will be tagged with terraform=true. | `map(string)` | `{}` | no |
 | target\_group\_arns | List of target groups for ASG to register. | `list(string)` | `[]` | no |
 | throughput\_mode | Throughput mode for the file system. Defaults to bursting. Valid values: bursting, provisioned. | `string` | `"bursting"` | no |

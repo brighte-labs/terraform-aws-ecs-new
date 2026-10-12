@@ -50,10 +50,17 @@ jobs:
   minimum:
     name: Minimum version check
     runs-on: ubuntu-latest
-    container:
-      image: hashicorp/terraform:0.13.0
+    # No hashicorp/terraform:0.13.0 container: actions/checkout now runs on
+    # Node 24, which can't start on that image's old Alpine
+    # ("Error relocating ... node: pthread_getname_np: symbol not found"),
+    # so the job failed before validating anything. Install the 0.13.0
+    # binary on the runner instead.
     steps:
       - uses: actions/checkout@master
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 0.13.0
+          terraform_wrapper: false
       - name: Validate Code
         env:
           AWS_REGION: 'us-east-1'

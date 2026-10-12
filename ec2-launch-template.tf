@@ -1,7 +1,11 @@
+# var.image_id overrides the ECS-optimized AMI lookup below. Accepts a plain
+# AMI id or "resolve:ssm:<parameter>" - EC2 then resolves the parameter at
+# every launch, so a pipeline can roll a patched AMI out by updating the
+# parameter without a Terraform apply. Unset = previous behaviour.
 resource "aws_launch_template" "ecs" {
   count         = var.fargate_only ? 0 : 1
   name_prefix   = "ecs-${var.name}-"
-  image_id      = data.aws_ami.amzn.image_id
+  image_id      = var.image_id != null ? var.image_id : data.aws_ami.amzn[0].image_id
   instance_type = length(var.instance_types) == 0 ? "t2.micro" : var.instance_types[0]
 
   dynamic "metadata_options" {
@@ -43,7 +47,7 @@ resource "aws_launch_template" "ecs" {
     create_before_destroy = true
   }
 
-    tags = merge(
+  tags = merge(
     var.tags,
     {
       "Terraform" = true
@@ -55,7 +59,7 @@ resource "tls_private_key" "algorithm" {
   count     = var.ec2_key_enabled ? 1 : 0
   algorithm = "RSA"
   rsa_bits  = 4096
-  
+
 }
 
 resource "aws_key_pair" "generated_key" {
@@ -63,7 +67,7 @@ resource "aws_key_pair" "generated_key" {
   key_name   = "${var.name}-key"
   public_key = tls_private_key.algorithm[0].public_key_openssh
 
-    tags = merge(
+  tags = merge(
     var.tags,
     {
       "Terraform" = true
