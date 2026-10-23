@@ -17,18 +17,41 @@ echo "fs.file-max=65536" >> /etc/sysctl.conf
 /sbin/sysctl -p /etc/sysctl.conf
 
 
+echo "### SETUP AGENT"
+# Written FIRST, before any yum: with `set -eux` a failure further down used to
+# abort the userdata before this block, the agent then registered in the
+# "default" cluster and the node never joined (2026-10-23: 18 staging/uat
+# nodes, TOPS-12504). Safe this early - ecs.service starts after cloud-final,
+# i.e. only once the rest of this script (EFS mount included) has run.
+echo "ECS_CLUSTER=${tf_cluster_name}" >> /etc/ecs/ecs.config
+echo "ECS_ENABLE_SPOT_INSTANCE_DRAINING=true" >> /etc/ecs/ecs.config
+
 echo "### INSTALL PACKAGES"
-yum update -y
-yum install -y amazon-efs-utils aws-cli
+# At boot the SSM agent installs its plugins (Inspector, GuardDuty runtime
+# monitoring, SSM agent update associations) at the same time as this script,
+# and yum fails straight away with "can't create transaction lock on
+# /var/lib/rpm/.rpm.lock". Retry instead of aborting on the first collision.
+yum_retry() {
+  for attempt in $(seq 1 20); do
+    yum "$@" && return 0
+    echo "WARN: yum $* failed (attempt $attempt/20, rpm lock held by another installer?) - retrying in 15s"
+    sleep 15
+  done
+  return 1
+}
+# The patched golden AMI is already current; a failed update must not stop
+# the node from joining.
+yum_retry update -y || echo "WARN: yum update failed after retries - continuing on the AMI's packages"
+yum_retry install -y amazon-efs-utils aws-cli
 # yum-utils is only needed for `needs-restarting -r` below. On AL2023 the
 # yum shim resolves this to dnf-utils and a transient dnf cache race can
 # cause the transaction to abort mid-install (RPM disappears from cache
-# before install completes). Because `set -eux` is on, that aborts the
-# whole userdata and the SETUP AGENT block never writes ECS_CLUSTER, so
-# the node fails to join ECS. Make this install non-fatal — the reboot
+# before install completes). Because `set -eux` is on, that would abort the
+# rest of the userdata (EFS, extra userdata, reboot check). Make this
+# install non-fatal — the reboot
 # check below already handles missing needs-restarting via its default
 # case branch.
-yum install -y yum-utils || echo "WARN: yum-utils install failed, needs-restarting reboot check will be skipped"
+yum_retry install -y yum-utils || echo "WARN: yum-utils install failed, needs-restarting reboot check will be skipped"
 
 
 echo "### SETUP EFS"
@@ -40,10 +63,6 @@ echo "$${EFS_ID}:/ $${EFS_DIR} efs tls,_netdev" >> /etc/fstab
 
 for i in $(seq 1 20); do mount -a -t efs defaults && break || sleep 60; done
 
-echo "### SETUP AGENT"
-
-echo "ECS_CLUSTER=${tf_cluster_name}" >> /etc/ecs/ecs.config
-echo "ECS_ENABLE_SPOT_INSTANCE_DRAINING=true" >> /etc/ecs/ecs.config
 
 
 echo "### EXTRA USERDATA"
