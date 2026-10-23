@@ -26,6 +26,18 @@ echo "### SETUP AGENT"
 echo "ECS_CLUSTER=${tf_cluster_name}" >> /etc/ecs/ecs.config
 echo "ECS_ENABLE_SPOT_INSTANCE_DRAINING=true" >> /etc/ecs/ecs.config
 
+# ecs.service is only ordered After=cloud-final - it starts even when this
+# script fails. With the cluster already configured above, a failed mandatory
+# step (package install, EFS mount, extra userdata) must not leave a node that
+# joins the cluster and takes tasks half-bootstrapped: keep the agent off
+# instead. The node then shows as InService but not registered, which the
+# golden-AMI morning check alerts on.
+bootstrap_failed() {
+  echo "ERROR: mandatory bootstrap step failed - masking ecs.service so this node does not join the cluster"
+  systemctl mask --now ecs || true
+}
+trap bootstrap_failed ERR
+
 echo "### INSTALL PACKAGES"
 # At boot the SSM agent installs its plugins (Inspector, GuardDuty runtime
 # monitoring, SSM agent update associations) at the same time as this script,
@@ -62,11 +74,16 @@ mkdir -p $${EFS_DIR}
 echo "$${EFS_ID}:/ $${EFS_DIR} efs tls,_netdev" >> /etc/fstab
 
 for i in $(seq 1 20); do mount -a -t efs defaults && break || sleep 60; done
+# The loop above ends successfully even when every attempt failed.
+mountpoint -q "$${EFS_DIR}"
 
 
 
 echo "### EXTRA USERDATA"
 ${userdata_extra}
+
+# Mandatory bootstrap done; nothing below may keep the agent off.
+trap - ERR
 
 echo "### REBOOT IF KERNEL/CORE PACKAGES UPDATED"
 # Wiz scans the running kernel; without reboot it stays on the AMI's baked kernel
