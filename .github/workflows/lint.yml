@@ -69,3 +69,34 @@ jobs:
           sed -i -e 's/>=/=/' -e 's/ \(\d\+\.\d\+\)"/ \1.0"/' versions.tf
           terraform init
           terraform validate -var "region=${AWS_REGION}" -var "vpc_id=vpc-123456" -var "subnets=[\"subnet-12345a\"]" -var "workers_ami_id=ami-123456" -var "cluster_ingress_cidrs=[]" -var "cluster_name=test_cluster"
+
+  worker-validate:
+    name: Validate worker submodule
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.1
+          terraform_wrapper: false
+      - name: Validate worker in isolation
+        env:
+          TF_IN_AUTOMATION: 'true'
+          AWS_EC2_METADATA_DISABLED: 'true'
+        run: |
+          set -eu
+          validation_dir=$(mktemp -d)
+          trap 'rm -rf "$validation_dir"' EXIT
+          cp modules/ecs-app-worker/*.tf "$validation_dir/"
+          cat > "$validation_dir/validation-provider.tf" <<'EOF'
+          terraform {
+            required_providers {
+              aws = {
+                source  = "hashicorp/aws"
+                version = "= 6.31.0"
+              }
+            }
+          }
+          EOF
+          terraform -chdir="$validation_dir" init -backend=false -input=false
+          terraform -chdir="$validation_dir" validate

@@ -1,0 +1,23 @@
+# Local change: ignore externally managed desired_count; see README.md.
+
+resource "aws_ecs_service" "default" {
+  name            = var.name
+  cluster         = var.cluster_name
+  task_definition = aws_ecs_task_definition.default.arn
+  desired_count   = var.desired_count
+
+  deployment_maximum_percent         = 100
+  deployment_minimum_healthy_percent = 0
+
+  lifecycle {
+    ignore_changes = [task_definition, desired_count]
+  }
+
+  tags = merge(
+    var.tags,
+    {
+      "EcsService" = var.name
+      "EcsCluster" = var.cluster_name
+    },
+  )
+}
